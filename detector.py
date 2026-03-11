@@ -1,62 +1,92 @@
+import cv2
 import numpy as np
 
-# ─── Índices de puntos faciales de MediaPipe ───────────────────────────────
-OJO_IZQ = [362, 385, 387, 263, 373, 380]
-OJO_DER = [33,  160, 158, 133, 153, 144]
-BOCA    = [13,  14,  78,  308, 82,  312]
+# Cargamos los detectores que vienen incluidos en OpenCV
+DETECTOR_ROSTRO = cv2.CascadeClassifier(
+    cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
+)
+DETECTOR_OJOS = cv2.CascadeClassifier(
+    cv2.data.haarcascades + 'haarcascade_eye.xml'
+)
 
-# ─── Umbrales ─────────────────────────────────────────────────────────────
-UMBRAL_EAR = 0.25   # Menor a este valor = ojos cerrados
-UMBRAL_MAR = 0.60   # Mayor a este valor = bostezo
+UMBRAL_EAR   = 0.25
+UMBRAL_MAR   = 0.60
 
 
-def calcular_EAR(landmarks, puntos_ojo, w, h):
+def detectar_ojos(frame):
     """
-    Eye Aspect Ratio — mide qué tan abierto está el ojo.
-    Si el valor baja de 0.25 significa que el ojo está cerrado.
+    Detecta ojos en el frame y retorna su EAR aproximado.
+    Retorna (ear, frame_con_dibujo)
     """
-    p = [
-        (int(landmarks[i].x * w), int(landmarks[i].y * h))
-        for i in puntos_ojo
-    ]
-    vertical1   = np.linalg.norm(np.array(p[1]) - np.array(p[5]))
-    vertical2   = np.linalg.norm(np.array(p[2]) - np.array(p[4]))
-    horizontal  = np.linalg.norm(np.array(p[0]) - np.array(p[3]))
+    gris  = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    rostros = DETECTOR_ROSTRO.detectMultiScale(gris, 1.1, 5, minSize=(80, 80))
 
-    if horizontal == 0:
-        return 0.0
+    ear = 0.35  # valor normal por defecto
 
-    ear = (vertical1 + vertical2) / (2.0 * horizontal)
-    return round(ear, 3)
+    for (x, y, w, h) in rostros:
+        roi_gris  = gris[y:y+h, x:x+w]
+        ojos = DETECTOR_OJOS.detectMultiScale(roi_gris, 1.1, 10)
+
+        if len(ojos) >= 2:
+            # EAR aproximado: altura / ancho del ojo detectado
+            areas_ear = []
+            for (ex, ey, ew, eh) in ojos[:2]:
+                ear_ojo = eh / ew  # cuando cierra, eh baja → EAR baja
+                areas_ear.append(ear_ojo)
+                cv2.rectangle(frame,
+                              (x+ex, y+ey),
+                              (x+ex+ew, y+ey+eh),
+                              (0, 255, 255), 2)
+            ear = sum(areas_ear) / len(areas_ear)
+
+        elif len(ojos) == 1:
+            # Solo detecta un ojo → probablemente cerrando
+            ear = 0.20
+
+        elif len(ojos) == 0:
+            # No detecta ojos → ojos muy cerrados
+            ear = 0.10
+
+        cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 200, 255), 2)
+
+    return round(ear, 3), frame
 
 
-def calcular_MAR(landmarks, w, h):
+def detectar_boca(frame):
     """
-    Mouth Aspect Ratio — mide qué tan abierta está la boca.
-    Si el valor sube de 0.60 significa que la persona está bostezando.
+    Detecta boca abierta usando detector de sonrisa/boca.
+    Retorna MAR aproximado.
     """
-    p = [
-        (int(landmarks[i].x * w), int(landmarks[i].y * h))
-        for i in BOCA
-    ]
-    vertical   = np.linalg.norm(np.array(p[0]) - np.array(p[1]))
-    horizontal = np.linalg.norm(np.array(p[2]) - np.array(p[3]))
+    detector_boca = cv2.CascadeClassifier(
+        cv2.data.haarcascades + 'haarcascade_smile.xml'
+    )
+    gris   = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    rostros = DETECTOR_ROSTRO.detectMultiScale(gris, 1.1, 5, minSize=(80, 80))
 
-    if horizontal == 0:
-        return 0.0
+    mar = 0.0
 
-    mar = vertical / horizontal
-    return round(mar, 3)
+    for (x, y, w, h) in rostros:
+        roi_gris = gris[y + h//2 : y+h, x:x+w]  # solo mitad inferior
+        bocas = detector_boca.detectMultiScale(roi_gris, 1.7, 20)
+
+        if len(bocas) > 0:
+            bx, by, bw, bh = bocas[0]
+            mar = bh / bw  # boca abierta → mar sube
+            cv2.rectangle(frame,
+                          (x+bx, y + h//2 + by),
+                          (x+bx+bw, y + h//2 + by+bh),
+                          (0, 255, 0), 2)
+
+    return round(mar, 3), frame
 
 
 def evaluar_estado(ear, mar, segundos_ojos_cerrados):
     """
-    Decide el estado del conductor según EAR, MAR y tiempo.
     Retorna: 'normal', 'precaucion' o 'alerta'
     """
     if ear < UMBRAL_EAR and segundos_ojos_cerrados >= 2:
-        return "alerta"       # Microsueño detectado
+        return "alerta"
     elif mar > UMBRAL_MAR:
-        return "precaucion"   # Bostezo detectado
+        return "precaucion"
     else:
         return "normal"
