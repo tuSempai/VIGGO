@@ -12,8 +12,7 @@ from kivy.uix.image import Image as KivyImage
 from kivy.clock import Clock
 from kivy.graphics.texture import Texture
 from kivy.core.window import Window
-from kivy.graphics import Color, RoundedRectangle, Rectangle, Ellipse
-from kivy.animation import Animation
+from kivy.graphics import Color, RoundedRectangle, Ellipse
 from kivy.uix.widget import Widget
 from kivy.metrics import dp
 
@@ -24,8 +23,6 @@ from alert import lanzar_alerta
 Window.size = (400, 750)
 Window.clearcolor = (0.04, 0.06, 0.12, 1)
 
-# ── Paleta de colores ──────────────────────────────────────────
-C_BG     = (0.04, 0.06, 0.12, 1)
 C_CARD   = (0.08, 0.11, 0.20, 1)
 C_CYAN   = (0.00, 0.83, 1.00, 1)
 C_GREEN  = (0.10, 0.90, 0.50, 1)
@@ -46,12 +43,16 @@ def make_card(widget, r=16, color=C_CARD):
 
 class StyledInput(TextInput):
     def __init__(self, **kwargs):
-        kwargs.setdefault('font_size', dp(15))
-        kwargs.setdefault('bold', True)
+        # Solo propiedades válidas de TextInput
         super().__init__(
-            background_color=(0, 0, 0, 0),
+            background_color=(0.08, 0.11, 0.20, 1),
             background_normal='',
-            color=(0.04, 0.06, 0.12, 1),
+            background_active='',
+            foreground_color=(0.88, 0.92, 1.00, 1),
+            cursor_color=(0.00, 0.83, 1.00, 1),
+            hint_text_color=(0.45, 0.52, 0.68, 0.8),
+            padding=[dp(16), dp(14)],
+            font_size=dp(15),
             **kwargs
         )
         with self.canvas.before:
@@ -63,9 +64,9 @@ class StyledInput(TextInput):
                 size=(self.size[0]-2, self.size[1]-2),
                 radius=[dp(9)]
             )
-        self.bind(pos=self._update_bg, size=self._update_bg)
+        self.bind(pos=self._upd_bg, size=self._upd_bg)
 
-    def _update_bg(self, *a):
+    def _upd_bg(self, *a):
         self._border.pos  = self.pos
         self._border.size = self.size
         self._fill.pos    = (self.pos[0]+1, self.pos[1]+1)
@@ -78,7 +79,6 @@ class CyanButton(Button):
             background_color=(0, 0, 0, 0),
             background_normal='',
             color=(0.04, 0.06, 0.12, 1),
-            font_size=dp(15),
             bold=True,
             **kwargs
         )
@@ -94,7 +94,6 @@ class CyanButton(Button):
 
 class GhostButton(Button):
     def __init__(self, **kwargs):
-        kwargs.setdefault('font_size', dp(13))
         super().__init__(
             background_color=(0, 0, 0, 0),
             background_normal='',
@@ -119,7 +118,7 @@ class LoginScreen(Screen):
         super().__init__(**kwargs)
         root = FloatLayout()
 
-        with root.canvas.before:
+        with self.canvas.before:
             Color(0.00, 0.83, 1.00, 0.04)
             Ellipse(pos=(-100, 400), size=(400, 400))
             Color(0.00, 0.50, 0.85, 0.03)
@@ -138,42 +137,44 @@ class LoginScreen(Screen):
                                   font_size=dp(12), color=(*C_MUTED[:3], 1),
                                   size_hint_y=None, height=dp(20)))
         layout.add_widget(logo_box)
-
-        # Separador
-        sep = Widget(size_hint_y=None, height=dp(8))
-        layout.add_widget(sep)
+        layout.add_widget(Widget(size_hint_y=None, height=dp(8)))
 
         # Campos
-        for label_text, attr, hint, pwd in [
-            ('CORREO ELECTRÓNICO', 'email_input', 'usuario@correo.com', False),
-            ('CONTRASEÑA',         'pass_input',  '••••••••',           True),
-        ]:
-            lbl = Label(text=label_text, font_size=dp(10),
-                        color=(*C_CYAN[:3], 0.8), halign='left',
-                        size_hint=(1, None), height=dp(20), bold=True)
-            lbl.bind(size=lambda w, s: setattr(w, 'text_size', (s[0], None)))
-            inp = StyledInput(hint_text=hint, password=pwd,
-                              size_hint_y=None, height=dp(48))
-            setattr(self, attr, inp)
-            layout.add_widget(lbl)
-            layout.add_widget(inp)
+        lbl_e = Label(text='CORREO ELECTRÓNICO', font_size=dp(10),
+                      color=(*C_CYAN[:3], 0.8), halign='left', bold=True,
+                      size_hint=(1, None), height=dp(20))
+        lbl_e.bind(size=lambda w, s: setattr(w, 'text_size', (s[0], None)))
+        self.email_input = StyledInput(hint_text='usuario@correo.com',
+                                       size_hint_y=None, height=dp(48))
+
+        lbl_p = Label(text='CONTRASEÑA', font_size=dp(10),
+                      color=(*C_CYAN[:3], 0.8), halign='left', bold=True,
+                      size_hint=(1, None), height=dp(20))
+        lbl_p.bind(size=lambda w, s: setattr(w, 'text_size', (s[0], None)))
+        self.pass_input = StyledInput(hint_text='••••••••', password=True,
+                                      size_hint_y=None, height=dp(48))
+
+        layout.add_widget(lbl_e)
+        layout.add_widget(self.email_input)
+        layout.add_widget(lbl_p)
+        layout.add_widget(self.pass_input)
 
         self.msg = Label(text='', font_size=dp(12), color=C_RED,
                          size_hint_y=None, height=dp(24))
         layout.add_widget(self.msg)
 
-        btn_login = CyanButton(text='INICIAR SESIÓN', size_hint_y=None, height=dp(52))
+        btn_login = CyanButton(text='INICIAR SESIÓN', font_size=dp(15),
+                               size_hint_y=None, height=dp(52))
         btn_login.bind(on_press=self.hacer_login)
         layout.add_widget(btn_login)
 
         btn_reg = GhostButton(text='¿No tienes cuenta?  Regístrate →',
-                              size_hint_y=None, height=dp(44))
+                              font_size=dp(13), size_hint_y=None, height=dp(44))
         btn_reg.bind(on_press=lambda *a: setattr(self.manager, 'current', 'registro'))
         layout.add_widget(btn_reg)
 
         layout.add_widget(Widget())
-        root.add_widget(layout)
-        self.add_widget(root)
+        self.add_widget(layout)
 
     def hacer_login(self, *args):
         email    = self.email_input.text.strip()
@@ -207,14 +208,15 @@ class RegistroScreen(Screen):
                                 size_hint_y=None, height=dp(20)))
         layout.add_widget(Widget(size_hint_y=None, height=dp(8)))
 
-        for label_text, attr, hint, pwd in [
-            ('NOMBRE COMPLETO',    'nombre_input', 'Tu nombre',          False),
+        fields = [
+            ('NOMBRE COMPLETO',    'nombre_input', 'Tu nombre completo', False),
             ('CORREO ELECTRÓNICO', 'email_input',  'usuario@correo.com', False),
             ('CONTRASEÑA',         'pass_input',   '••••••••',           True),
-        ]:
+        ]
+        for label_text, attr, hint, pwd in fields:
             lbl = Label(text=label_text, font_size=dp(10),
-                        color=(*C_CYAN[:3], 0.8), halign='left',
-                        size_hint=(1, None), height=dp(20), bold=True)
+                        color=(*C_CYAN[:3], 0.8), halign='left', bold=True,
+                        size_hint=(1, None), height=dp(20))
             lbl.bind(size=lambda w, s: setattr(w, 'text_size', (s[0], None)))
             inp = StyledInput(hint_text=hint, password=pwd,
                               size_hint_y=None, height=dp(48))
@@ -226,12 +228,13 @@ class RegistroScreen(Screen):
                          size_hint_y=None, height=dp(24))
         layout.add_widget(self.msg)
 
-        btn_crear = CyanButton(text='CREAR CUENTA', size_hint_y=None, height=dp(52))
+        btn_crear = CyanButton(text='CREAR CUENTA', font_size=dp(15),
+                               size_hint_y=None, height=dp(52))
         btn_crear.bind(on_press=self.hacer_registro)
         layout.add_widget(btn_crear)
 
         btn_volver = GhostButton(text='← Volver al inicio de sesión',
-                                 size_hint_y=None, height=dp(44))
+                                 font_size=dp(13), size_hint_y=None, height=dp(44))
         btn_volver.bind(on_press=lambda *a: setattr(self.manager, 'current', 'login'))
         layout.add_widget(btn_volver)
 
@@ -290,13 +293,14 @@ class CamaraScreen(Screen):
             Color(*C_CARD)
             self._cam_bg = RoundedRectangle(
                 pos=cam_container.pos, size=cam_container.size, radius=[dp(15)])
-        cam_container.bind(
-            pos=lambda w, p: [setattr(self._cam_border, 'pos', p),
-                               setattr(self._cam_bg, 'pos', p)],
-            size=lambda w, s: [setattr(self._cam_border, 'size', s),
-                                setattr(self._cam_bg, 'size', s)]
-        )
-        self.img_camara = KivyImage(size_hint=(1, 1), allow_stretch=True)
+        def _upd_cam(w, v, border=self._cam_border, bg=self._cam_bg, is_pos=False):
+            border.pos  = w.pos
+            border.size = w.size
+            bg.pos      = w.pos
+            bg.size     = w.size
+        cam_container.bind(pos=_upd_cam, size=_upd_cam)
+
+        self.img_camara  = KivyImage(size_hint=(1, 1), allow_stretch=True)
         self.lbl_cam_off = Label(text='[ CÁMARA DESACTIVADA ]',
                                   font_size=dp(13), color=(*C_MUTED[:3], 0.4),
                                   size_hint=(1, 1))
@@ -304,7 +308,7 @@ class CamaraScreen(Screen):
         cam_container.add_widget(self.lbl_cam_off)
         layout.add_widget(cam_container)
 
-        # Estado
+        # Panel estado
         estado_box = BoxLayout(size_hint_y=None, height=dp(60),
                                padding=[dp(16), dp(8)], spacing=dp(10))
         make_card(estado_box, r=14)
@@ -318,18 +322,17 @@ class CamaraScreen(Screen):
         estado_box.add_widget(self.lbl_estado)
         layout.add_widget(estado_box)
 
-        # Métricas
-        metricas = BoxLayout(size_hint_y=None, height=dp(64), spacing=dp(8))
-
+        # Métricas EAR / MAR
+        metricas = BoxLayout(size_hint_y=None, height=dp(70), spacing=dp(8))
         for title, attr in [('EAR — OJOS', 'lbl_ear'), ('MAR — BOCA', 'lbl_mar')]:
             box = BoxLayout(orientation='vertical', padding=[dp(12), dp(6)])
             make_card(box, r=12)
             box.add_widget(Label(text=title, font_size=dp(9),
                                  color=(*C_CYAN[:3], 0.7), bold=True,
                                  size_hint_y=None, height=dp(18)))
-            val_lbl = Label(text='—', font_size=dp(20), bold=True, color=C_TEXT)
-            setattr(self, attr, val_lbl)
-            box.add_widget(val_lbl)
+            val = Label(text='—', font_size=dp(20), bold=True, color=C_TEXT)
+            setattr(self, attr, val)
+            box.add_widget(val)
             metricas.add_widget(box)
         layout.add_widget(metricas)
 
@@ -337,7 +340,8 @@ class CamaraScreen(Screen):
         botones = BoxLayout(size_hint_y=None, height=dp(52), spacing=dp(8))
         self.btn_camara = CyanButton(text='▶  INICIAR DETECCIÓN', font_size=dp(14))
         self.btn_camara.bind(on_press=self.toggle_camara)
-        btn_salir = GhostButton(text='Salir', size_hint_x=None, width=dp(90))
+        btn_salir = GhostButton(text='Salir', font_size=dp(13),
+                                size_hint_x=None, width=dp(90))
         btn_salir.bind(on_press=self.cerrar_sesion)
         botones.add_widget(self.btn_camara)
         botones.add_widget(btn_salir)
@@ -346,6 +350,17 @@ class CamaraScreen(Screen):
         layout.add_widget(Widget())
         self.add_widget(layout)
 
+    def _set_btn_color(self, color):
+        self.btn_camara.canvas.before.clear()
+        with self.btn_camara.canvas.before:
+            Color(*color)
+            self.btn_camara._bg = RoundedRectangle(
+                pos=self.btn_camara.pos,
+                size=self.btn_camara.size,
+                radius=[dp(12)])
+        self.btn_camara.bind(pos=self.btn_camara._upd,
+                              size=self.btn_camara._upd)
+
     def toggle_camara(self, *args):
         if not self.activo:
             self.iniciar_camara()
@@ -353,16 +368,11 @@ class CamaraScreen(Screen):
             self.detener_camara()
 
     def iniciar_camara(self):
-        self.cap = cv2.VideoCapture(0)
+        self.cap    = cv2.VideoCapture(0)
         self.activo = True
         self.lbl_cam_off.opacity = 0
         self.btn_camara.text = '⏹  DETENER'
-        self.btn_camara.canvas.before.clear()
-        with self.btn_camara.canvas.before:
-            Color(*C_RED)
-            self.btn_camara._bg = RoundedRectangle(
-                pos=self.btn_camara.pos, size=self.btn_camara.size, radius=[dp(12)])
-        self.btn_camara.bind(pos=self.btn_camara._upd, size=self.btn_camara._upd)
+        self._set_btn_color(C_RED)
         Clock.schedule_interval(self.actualizar_frame, 1.0 / 20)
 
     def detener_camara(self):
@@ -370,19 +380,14 @@ class CamaraScreen(Screen):
         Clock.unschedule(self.actualizar_frame)
         if self.cap:
             self.cap.release()
-        self.lbl_cam_off.opacity = 1
-        self.btn_camara.text = '▶  INICIAR DETECCIÓN'
-        self.btn_camara.canvas.before.clear()
-        with self.btn_camara.canvas.before:
-            Color(*C_CYAN)
-            self.btn_camara._bg = RoundedRectangle(
-                pos=self.btn_camara.pos, size=self.btn_camara.size, radius=[dp(12)])
-        self.btn_camara.bind(pos=self.btn_camara._upd, size=self.btn_camara._upd)
-        self.lbl_estado.text  = 'Presiona INICIAR para comenzar'
-        self.lbl_estado.color = C_TEXT
-        self.estado_dot.color = (*C_MUTED[:3], 0.4)
-        self.lbl_ear.text = '—'
-        self.lbl_mar.text = '—'
+        self.lbl_cam_off.opacity  = 1
+        self.btn_camara.text      = '▶  INICIAR DETECCIÓN'
+        self._set_btn_color(C_CYAN)
+        self.lbl_estado.text      = 'Presiona INICIAR para comenzar'
+        self.lbl_estado.color     = C_TEXT
+        self.estado_dot.color     = (*C_MUTED[:3], 0.4)
+        self.lbl_ear.text         = '—'
+        self.lbl_mar.text         = '—'
 
     def actualizar_frame(self, dt):
         if not self.cap or not self.cap.isOpened():
