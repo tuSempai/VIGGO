@@ -17,7 +17,7 @@ from kivy.uix.widget import Widget
 from kivy.metrics import dp
 
 from database import registrar_usuario, verificar_login
-from detector import detectar_ojos, detectar_boca, evaluar_estado, UMBRAL_EAR, UMBRAL_MAR
+from detector import detectar_rostro, evaluar_estado, EAR_MALO, EAR_MEDIANO
 from alert import lanzar_alerta
 
 Window.size = (400, 750)
@@ -27,10 +27,25 @@ C_CARD   = (0.08, 0.11, 0.20, 1)
 C_CYAN   = (0.00, 0.83, 1.00, 1)
 C_GREEN  = (0.10, 0.90, 0.50, 1)
 C_YELLOW = (1.00, 0.80, 0.10, 1)
+C_ORANGE = (1.00, 0.50, 0.05, 1)
 C_RED    = (1.00, 0.22, 0.35, 1)
 C_TEXT   = (0.88, 0.92, 1.00, 1)
 C_MUTED  = (0.45, 0.52, 0.68, 1)
 C_BORDER = (0.14, 0.20, 0.38, 1)
+
+# Estado → (emoji, texto, color UI)
+ESTADO_INFO = {
+    "bueno":   ("✓",  "Conductor alerta — Todo bien",        C_GREEN),
+    "mediano": ("〰", "Fatiga leve — Mantente atento",        C_YELLOW),
+    "malo":    ("⚠",  "Fatiga alta — Considera detenerte",   C_ORANGE),
+    "alerta":  ("🚨", "¡MICROSUEÑO! — Detente ahora",        C_RED),
+}
+NIVEL_TEXTO = {
+    "bueno":   "Nivel: BUENO    ● ○ ○ ○",
+    "mediano": "Nivel: MEDIANO  ● ● ○ ○",
+    "malo":    "Nivel: MALO     ● ● ● ○",
+    "alerta":  "Nivel: ALERTA   ● ● ● ●",
+}
 
 
 def make_card(widget, r=16, color=C_CARD):
@@ -43,34 +58,18 @@ def make_card(widget, r=16, color=C_CARD):
 
 class StyledInput(TextInput):
     def __init__(self, **kwargs):
-        # Solo propiedades válidas de TextInput
         super().__init__(
-            background_color=(0.08, 0.11, 0.20, 1),
+            background_color=(0.10, 0.14, 0.25, 1),
             background_normal='',
             background_active='',
             foreground_color=(0.88, 0.92, 1.00, 1),
+            hint_text_color=(0.45, 0.52, 0.68, 1),
             cursor_color=(0.00, 0.83, 1.00, 1),
-            hint_text_color=(0.45, 0.52, 0.68, 0.8),
             padding=[dp(16), dp(14)],
             font_size=dp(15),
+            multiline=False,
             **kwargs
         )
-        with self.canvas.before:
-            Color(*C_BORDER)
-            self._border = RoundedRectangle(pos=self.pos, size=self.size, radius=[dp(10)])
-            Color(*C_CARD)
-            self._fill = RoundedRectangle(
-                pos=(self.pos[0]+1, self.pos[1]+1),
-                size=(self.size[0]-2, self.size[1]-2),
-                radius=[dp(9)]
-            )
-        self.bind(pos=self._upd_bg, size=self._upd_bg)
-
-    def _upd_bg(self, *a):
-        self._border.pos  = self.pos
-        self._border.size = self.size
-        self._fill.pos    = (self.pos[0]+1, self.pos[1]+1)
-        self._fill.size   = (self.size[0]-2, self.size[1]-2)
 
 
 class CyanButton(Button):
@@ -116,7 +115,6 @@ class GhostButton(Button):
 class LoginScreen(Screen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        root = FloatLayout()
 
         with self.canvas.before:
             Color(0.00, 0.83, 1.00, 0.04)
@@ -127,7 +125,6 @@ class LoginScreen(Screen):
         layout = BoxLayout(orientation='vertical', padding=[dp(32), dp(40)],
                            spacing=dp(14), size_hint=(1, 1))
 
-        # Logo
         logo_box = BoxLayout(orientation='vertical', size_hint_y=None, height=dp(130))
         logo_box.add_widget(Label(text='◉', font_size=dp(48), color=C_CYAN,
                                   size_hint_y=None, height=dp(60)))
@@ -139,7 +136,6 @@ class LoginScreen(Screen):
         layout.add_widget(logo_box)
         layout.add_widget(Widget(size_hint_y=None, height=dp(8)))
 
-        # Campos
         lbl_e = Label(text='CORREO ELECTRÓNICO', font_size=dp(10),
                       color=(*C_CYAN[:3], 0.8), halign='left', bold=True,
                       size_hint=(1, None), height=dp(20))
@@ -293,14 +289,11 @@ class CamaraScreen(Screen):
             Color(*C_CARD)
             self._cam_bg = RoundedRectangle(
                 pos=cam_container.pos, size=cam_container.size, radius=[dp(15)])
-        def _upd_cam(w, v, border=self._cam_border, bg=self._cam_bg, is_pos=False):
-            border.pos  = w.pos
-            border.size = w.size
-            bg.pos      = w.pos
-            bg.size     = w.size
+        def _upd_cam(w, v, border=self._cam_border, bg=self._cam_bg):
+            border.pos  = w.pos; border.size = w.size
+            bg.pos      = w.pos; bg.size     = w.size
         cam_container.bind(pos=_upd_cam, size=_upd_cam)
-
-        self.img_camara  = KivyImage(size_hint=(1, 1), allow_stretch=True)
+        self.img_camara  = KivyImage(size_hint=(1, 1))
         self.lbl_cam_off = Label(text='[ CÁMARA DESACTIVADA ]',
                                   font_size=dp(13), color=(*C_MUTED[:3], 0.4),
                                   size_hint=(1, 1))
@@ -308,18 +301,25 @@ class CamaraScreen(Screen):
         cam_container.add_widget(self.lbl_cam_off)
         layout.add_widget(cam_container)
 
-        # Panel estado
-        estado_box = BoxLayout(size_hint_y=None, height=dp(60),
+        # Panel estado con nivel de fatiga
+        estado_box = BoxLayout(size_hint_y=None, height=dp(64),
                                padding=[dp(16), dp(8)], spacing=dp(10))
         make_card(estado_box, r=14)
-        self.estado_dot = Label(text='●', font_size=dp(22),
+        self.estado_dot = Label(text='●', font_size=dp(24),
                                 color=(*C_MUTED[:3], 0.4),
-                                size_hint_x=None, width=dp(30))
+                                size_hint_x=None, width=dp(32))
+        estado_texto = BoxLayout(orientation='vertical')
         self.lbl_estado = Label(text='Presiona INICIAR para comenzar',
-                                font_size=dp(13), color=C_TEXT, halign='left')
+                                font_size=dp(13), color=C_TEXT,
+                                halign='left', bold=True)
         self.lbl_estado.bind(size=lambda w, s: setattr(w, 'text_size', (s[0], None)))
+        self.lbl_nivel = Label(text='', font_size=dp(10),
+                               color=(*C_MUTED[:3], 1), halign='left')
+        self.lbl_nivel.bind(size=lambda w, s: setattr(w, 'text_size', (s[0], None)))
+        estado_texto.add_widget(self.lbl_estado)
+        estado_texto.add_widget(self.lbl_nivel)
         estado_box.add_widget(self.estado_dot)
-        estado_box.add_widget(self.lbl_estado)
+        estado_box.add_widget(estado_texto)
         layout.add_widget(estado_box)
 
         # Métricas EAR / MAR
@@ -330,7 +330,7 @@ class CamaraScreen(Screen):
             box.add_widget(Label(text=title, font_size=dp(9),
                                  color=(*C_CYAN[:3], 0.7), bold=True,
                                  size_hint_y=None, height=dp(18)))
-            val = Label(text='—', font_size=dp(20), bold=True, color=C_TEXT)
+            val = Label(text='—', font_size=dp(22), bold=True, color=C_TEXT)
             setattr(self, attr, val)
             box.add_widget(val)
             metricas.add_widget(box)
@@ -355,8 +355,7 @@ class CamaraScreen(Screen):
         with self.btn_camara.canvas.before:
             Color(*color)
             self.btn_camara._bg = RoundedRectangle(
-                pos=self.btn_camara.pos,
-                size=self.btn_camara.size,
+                pos=self.btn_camara.pos, size=self.btn_camara.size,
                 radius=[dp(12)])
         self.btn_camara.bind(pos=self.btn_camara._upd,
                               size=self.btn_camara._upd)
@@ -385,9 +384,11 @@ class CamaraScreen(Screen):
         self._set_btn_color(C_CYAN)
         self.lbl_estado.text      = 'Presiona INICIAR para comenzar'
         self.lbl_estado.color     = C_TEXT
+        self.lbl_nivel.text       = ''
         self.estado_dot.color     = (*C_MUTED[:3], 0.4)
         self.lbl_ear.text         = '—'
         self.lbl_mar.text         = '—'
+        self.tiempo_ojos_cerrados = 0
 
     def actualizar_frame(self, dt):
         if not self.cap or not self.cap.isOpened():
@@ -396,10 +397,10 @@ class CamaraScreen(Screen):
         if not ret:
             return
 
-        ear, frame = detectar_ojos(frame)
-        mar, frame = detectar_boca(frame)
+        ear, mar, frame = detectar_rostro(frame)
 
-        if ear < UMBRAL_EAR:
+        # Tiempo con ojos muy cerrados
+        if ear < EAR_MALO:
             if self.tiempo_ojos_cerrados == 0:
                 self.tiempo_ojos_cerrados = time.time()
             segundos = time.time() - self.tiempo_ojos_cerrados
@@ -409,33 +410,35 @@ class CamaraScreen(Screen):
 
         estado = evaluar_estado(ear, mar, segundos)
 
+        # Métricas
         self.lbl_ear.text = f'{ear:.3f}'
         self.lbl_mar.text = f'{mar:.3f}'
 
+        # Sonido — alerta cada 3s, precaución cada 5s
         ahora = time.time()
-        if estado != "normal" and (ahora - self.ultima_alerta) > 3:
+        if estado == "alerta" and (ahora - self.ultima_alerta) > 3:
             self.ultima_alerta = ahora
-            threading.Thread(target=lanzar_alerta, args=(estado,), daemon=True).start()
+            threading.Thread(
+                target=lanzar_alerta, args=("alerta",), daemon=True).start()
+        elif estado == "malo" and (ahora - self.ultima_alerta) > 5:
+            self.ultima_alerta = ahora
+            threading.Thread(
+                target=lanzar_alerta, args=("precaucion",), daemon=True).start()
 
-        if estado == "alerta":
-            self.lbl_estado.text  = '🚨  MICROSUEÑO — ¡Detente ya!'
-            self.lbl_estado.color = C_RED
-            self.estado_dot.color = C_RED
-            self.lbl_ear.color    = C_RED
-        elif estado == "precaucion":
-            self.lbl_estado.text  = '⚠  Bostezo — Considera descansar'
-            self.lbl_estado.color = C_YELLOW
-            self.estado_dot.color = C_YELLOW
-            self.lbl_ear.color    = C_YELLOW
-        else:
-            self.lbl_estado.text  = '✓  Conductor alerta — Todo normal'
-            self.lbl_estado.color = C_GREEN
-            self.estado_dot.color = C_GREEN
-            self.lbl_ear.color    = C_TEXT
+        # Actualizar UI
+        emoji, texto, color = ESTADO_INFO[estado]
+        self.lbl_estado.text  = f'{emoji}  {texto}'
+        self.lbl_estado.color = color
+        self.estado_dot.color = color
+        self.lbl_ear.color    = color if estado != "bueno" else C_TEXT
+        self.lbl_nivel.text   = NIVEL_TEXTO[estado]
+        self.lbl_nivel.color  = color
 
+        # Frame → textura Kivy
         frame_flip = cv2.flip(frame, 0)
         buf     = frame_flip.tobytes()
-        texture = Texture.create(size=(frame.shape[1], frame.shape[0]), colorfmt='bgr')
+        texture = Texture.create(
+            size=(frame.shape[1], frame.shape[0]), colorfmt='bgr')
         texture.blit_buffer(buf, colorfmt='bgr', bufferfmt='ubyte')
         self.img_camara.texture = texture
 
