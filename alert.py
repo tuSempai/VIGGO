@@ -1,15 +1,21 @@
 import threading
-import winsound  # Funciona en Windows sin instalar nada extra
+import winsound
+
 
 def reproducir_sonido_alerta():
     """
-    Reproduce un beep de alerta usando el sistema de Windows.
-    Se ejecuta en un hilo separado para no pausar la detección.
+    Alerta de MICROSUEÑO — patrón agresivo de alta frecuencia.
+    Alterna entre dos tonos altos para que sea imposible de ignorar.
+    Se ejecuta en hilo separado para no pausar la detección.
     """
     def _beep():
-        # Frecuencia 1000hz, duración 800ms — suena fuerte y claro
-        for _ in range(3):
-            winsound.Beep(1000, 800)
+        # Patrón: tono alto / tono muy alto, 6 veces
+        # 1800 Hz y 2400 Hz son frecuencias que el oído percibe como urgentes
+        for _ in range(6):
+            winsound.Beep(1800, 180)   # tono alto, corto
+            winsound.Beep(2400, 180)   # tono más alto, corto
+        # Remate largo para que no quede duda
+        winsound.Beep(2000, 600)
 
     hilo = threading.Thread(target=_beep, daemon=True)
     hilo.start()
@@ -17,10 +23,11 @@ def reproducir_sonido_alerta():
 
 def reproducir_sonido_precaucion():
     """
-    Sonido más suave para cuando detecta un bostezo.
+    Alerta de BOSTEZO — más suave, solo un aviso preventivo.
     """
     def _beep():
-        winsound.Beep(600, 500)
+        winsound.Beep(900, 300)
+        winsound.Beep(700, 300)
 
     hilo = threading.Thread(target=_beep, daemon=True)
     hilo.start()
@@ -28,7 +35,7 @@ def reproducir_sonido_precaucion():
 
 def lanzar_alerta(tipo="alerta"):
     """
-    Función principal que se llama desde main.py
+    Función principal llamada desde main.py
     tipo: 'alerta' = microsueño | 'precaucion' = bostezo
     """
     if tipo == "alerta":

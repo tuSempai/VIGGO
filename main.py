@@ -12,7 +12,7 @@ from kivy.uix.image import Image as KivyImage
 from kivy.clock import Clock
 from kivy.graphics.texture import Texture
 from kivy.core.window import Window
-from kivy.graphics import Color, RoundedRectangle, Ellipse
+from kivy.graphics import Color, RoundedRectangle, Ellipse, Rectangle
 from kivy.uix.widget import Widget
 from kivy.metrics import dp
 
@@ -23,7 +23,9 @@ from alert import lanzar_alerta
 Window.size = (400, 750)
 Window.clearcolor = (0.04, 0.06, 0.12, 1)
 
+# ── Paleta ────────────────────────────────────────────────────────────────────
 C_CARD   = (0.08, 0.11, 0.20, 1)
+C_DARK   = (0.05, 0.07, 0.14, 1)
 C_CYAN   = (0.00, 0.83, 1.00, 1)
 C_GREEN  = (0.10, 0.90, 0.50, 1)
 C_YELLOW = (1.00, 0.80, 0.10, 1)
@@ -33,7 +35,6 @@ C_TEXT   = (0.88, 0.92, 1.00, 1)
 C_MUTED  = (0.45, 0.52, 0.68, 1)
 C_BORDER = (0.14, 0.20, 0.38, 1)
 
-# Estado → (emoji, texto, color UI)
 ESTADO_INFO = {
     "bueno":   ("✓",  "Conductor alerta — Todo bien",        C_GREEN),
     "mediano": ("〰", "Fatiga leve — Mantente atento",        C_YELLOW),
@@ -41,19 +42,21 @@ ESTADO_INFO = {
     "alerta":  ("🚨", "¡MICROSUEÑO! — Detente ahora",        C_RED),
 }
 NIVEL_TEXTO = {
-    "bueno":   "Nivel: BUENO    ● ○ ○ ○",
-    "mediano": "Nivel: MEDIANO  ● ● ○ ○",
-    "malo":    "Nivel: MALO     ● ● ● ○",
-    "alerta":  "Nivel: ALERTA   ● ● ● ●",
+    "bueno":   "● ○ ○ ○  BUENO",
+    "mediano": "● ● ○ ○  MEDIANO",
+    "malo":    "● ● ● ○  ALTO",
+    "alerta":  "● ● ● ●  CRÍTICO",
 }
 
 
 def make_card(widget, r=16, color=C_CARD):
     with widget.canvas.before:
         Color(*color)
-        widget._bg_rect = RoundedRectangle(pos=widget.pos, size=widget.size, radius=[r])
-    widget.bind(pos=lambda *a: setattr(widget._bg_rect, 'pos', widget.pos),
-                size=lambda *a: setattr(widget._bg_rect, 'size', widget.size))
+        widget._bg_rect = RoundedRectangle(
+            pos=widget.pos, size=widget.size, radius=[r])
+    widget.bind(
+        pos=lambda *a: setattr(widget._bg_rect, 'pos', widget.pos),
+        size=lambda *a: setattr(widget._bg_rect, 'size', widget.size))
 
 
 class StyledInput(TextInput):
@@ -83,7 +86,8 @@ class CyanButton(Button):
         )
         with self.canvas.before:
             Color(*C_CYAN)
-            self._bg = RoundedRectangle(pos=self.pos, size=self.size, radius=[dp(12)])
+            self._bg = RoundedRectangle(
+                pos=self.pos, size=self.size, radius=[dp(12)])
         self.bind(pos=self._upd, size=self._upd)
 
     def _upd(self, *a):
@@ -101,7 +105,8 @@ class GhostButton(Button):
         )
         with self.canvas.before:
             Color(*C_BORDER)
-            self._bg = RoundedRectangle(pos=self.pos, size=self.size, radius=[dp(12)])
+            self._bg = RoundedRectangle(
+                pos=self.pos, size=self.size, radius=[dp(12)])
         self.bind(pos=self._upd, size=self._upd)
 
     def _upd(self, *a):
@@ -125,7 +130,8 @@ class LoginScreen(Screen):
         layout = BoxLayout(orientation='vertical', padding=[dp(32), dp(40)],
                            spacing=dp(14), size_hint=(1, 1))
 
-        logo_box = BoxLayout(orientation='vertical', size_hint_y=None, height=dp(130))
+        logo_box = BoxLayout(orientation='vertical',
+                             size_hint_y=None, height=dp(130))
         logo_box.add_widget(Label(text='◉', font_size=dp(48), color=C_CYAN,
                                   size_hint_y=None, height=dp(60)))
         logo_box.add_widget(Label(text='VIGGO', font_size=dp(38), bold=True,
@@ -166,7 +172,8 @@ class LoginScreen(Screen):
 
         btn_reg = GhostButton(text='¿No tienes cuenta?  Regístrate →',
                               font_size=dp(13), size_hint_y=None, height=dp(44))
-        btn_reg.bind(on_press=lambda *a: setattr(self.manager, 'current', 'registro'))
+        btn_reg.bind(on_press=lambda *a: setattr(
+            self.manager, 'current', 'registro'))
         layout.add_widget(btn_reg)
 
         layout.add_widget(Widget())
@@ -182,7 +189,7 @@ class LoginScreen(Screen):
         if nombre:
             camara = self.manager.get_screen('camara')
             camara.nombre_usuario   = nombre
-            camara.lbl_usuario.text = f'👤  {nombre}'
+            camara.lbl_usuario.text = nombre
             self.manager.current = 'camara'
         else:
             self.msg.text = '✕  Correo o contraseña incorrectos'
@@ -231,7 +238,8 @@ class RegistroScreen(Screen):
 
         btn_volver = GhostButton(text='← Volver al inicio de sesión',
                                  font_size=dp(13), size_hint_y=None, height=dp(44))
-        btn_volver.bind(on_press=lambda *a: setattr(self.manager, 'current', 'login'))
+        btn_volver.bind(
+            on_press=lambda *a: setattr(self.manager, 'current', 'login'))
         layout.add_widget(btn_volver)
 
         layout.add_widget(Widget())
@@ -255,7 +263,7 @@ class RegistroScreen(Screen):
 
 
 # ─────────────────────────────────────────────
-# PANTALLA 3 — CÁMARA Y DETECCIÓN
+# PANTALLA 3 — CÁMARA Y DETECCIÓN (rediseñada)
 # ─────────────────────────────────────────────
 class CamaraScreen(Screen):
     def __init__(self, **kwargs):
@@ -266,99 +274,259 @@ class CamaraScreen(Screen):
         self.tiempo_ojos_cerrados = 0
         self.ultima_alerta        = 0
 
-        layout = BoxLayout(orientation='vertical', padding=[dp(12), dp(12)],
-                           spacing=dp(8))
+        # Layout principal sin padding superior para que cámara llegue al borde
+        layout = BoxLayout(
+            orientation='vertical',
+            spacing=dp(0),
+            padding=[dp(0), dp(0), dp(0), dp(0)]
+        )
 
-        # Header
-        header = BoxLayout(size_hint_y=None, height=dp(48), spacing=dp(8))
-        header.add_widget(Label(text='◉ VIGGO', font_size=dp(18), bold=True,
-                                color=C_CYAN, size_hint_x=0.4))
-        self.lbl_usuario = Label(text='👤  Usuario', font_size=dp(13),
-                                  color=(*C_MUTED[:3], 1), size_hint_x=0.6,
-                                  halign='right')
-        self.lbl_usuario.bind(size=lambda w, s: setattr(w, 'text_size', (s[0], None)))
-        header.add_widget(self.lbl_usuario)
-        layout.add_widget(header)
+        # ── ZONA CÁMARA (FloatLayout con HUD superpuesto) ────────────────────
+        # Ocupa ~58% de la pantalla = ~435px
+        cam_section = FloatLayout(size_hint=(1, None), height=dp(435))
 
-        # Vista cámara
-        cam_container = FloatLayout(size_hint_y=None, height=dp(270))
-        with cam_container.canvas.before:
+        # Fondo oscuro para el área de cámara
+        with cam_section.canvas.before:
+            Color(*C_DARK)
+            self._cam_bg_rect = Rectangle(
+                pos=cam_section.pos, size=cam_section.size)
+        cam_section.bind(
+            pos=lambda w, v: setattr(self._cam_bg_rect, 'pos', w.pos),
+            size=lambda w, v: setattr(self._cam_bg_rect, 'size', w.size))
+
+        # Feed de video (ocupa toda la sección)
+        self.img_camara = KivyImage(
+            size_hint=(1, 1),
+            pos_hint={'x': 0, 'y': 0},
+            allow_stretch=True,
+            keep_ratio=True
+        )
+        cam_section.add_widget(self.img_camara)
+
+        # Placeholder cuando cámara está apagada
+        self.lbl_cam_off = Label(
+            text='[ CÁMARA DESACTIVADA ]',
+            font_size=dp(13),
+            color=(*C_MUTED[:3], 0.35),
+            size_hint=(1, 1),
+            pos_hint={'x': 0, 'y': 0}
+        )
+        cam_section.add_widget(self.lbl_cam_off)
+
+        # ── HUD superior: barra de título superpuesta a la cámara ────────────
+        hud_top = BoxLayout(
+            size_hint=(1, None),
+            height=dp(52),
+            pos_hint={'x': 0, 'top': 1},
+            padding=[dp(16), dp(8)],
+            spacing=dp(8)
+        )
+        with hud_top.canvas.before:
+            Color(0.02, 0.04, 0.10, 0.78)
+            self._hud_bg = Rectangle(pos=hud_top.pos, size=hud_top.size)
+        hud_top.bind(
+            pos=lambda w, v: setattr(self._hud_bg, 'pos', w.pos),
+            size=lambda w, v: setattr(self._hud_bg, 'size', w.size))
+
+        hud_logo = Label(
+            text='◉  VIGGO',
+            font_size=dp(17),
+            bold=True,
+            color=C_CYAN,
+            size_hint_x=0.45,
+            halign='left'
+        )
+        hud_logo.bind(size=lambda w, s: setattr(w, 'text_size', (s[0], None)))
+
+        # Nombre usuario a la derecha
+        self.lbl_usuario = Label(
+            text='Usuario',
+            font_size=dp(13),
+            color=(*C_TEXT[:3], 0.85),
+            size_hint_x=0.55,
+            halign='right'
+        )
+        self.lbl_usuario.bind(
+            size=lambda w, s: setattr(w, 'text_size', (s[0], None)))
+
+        hud_top.add_widget(hud_logo)
+        hud_top.add_widget(self.lbl_usuario)
+        cam_section.add_widget(hud_top)
+
+        # ── HUD inferior: badge de estado superpuesto en la cámara ──────────
+        hud_bottom = BoxLayout(
+            size_hint=(1, None),
+            height=dp(46),
+            pos_hint={'x': 0, 'y': 0},
+            padding=[dp(16), dp(8)],
+            spacing=dp(10)
+        )
+        with hud_bottom.canvas.before:
+            Color(0.02, 0.04, 0.10, 0.80)
+            self._hud_bot_bg = Rectangle(
+                pos=hud_bottom.pos, size=hud_bottom.size)
+        hud_bottom.bind(
+            pos=lambda w, v: setattr(self._hud_bot_bg, 'pos', w.pos),
+            size=lambda w, v: setattr(self._hud_bot_bg, 'size', w.size))
+
+        self.hud_dot = Label(
+            text='●',
+            font_size=dp(14),
+            color=(*C_MUTED[:3], 0.4),
+            size_hint_x=None,
+            width=dp(20)
+        )
+        self.hud_estado = Label(
+            text='Presiona INICIAR para comenzar',
+            font_size=dp(12),
+            color=(*C_MUTED[:3], 0.8),
+            halign='left',
+            bold=True
+        )
+        self.hud_estado.bind(
+            size=lambda w, s: setattr(w, 'text_size', (s[0], None)))
+
+        self.hud_nivel = Label(
+            text='',
+            font_size=dp(11),
+            color=(*C_MUTED[:3], 0.7),
+            size_hint_x=None,
+            width=dp(110),
+            halign='right'
+        )
+        self.hud_nivel.bind(
+            size=lambda w, s: setattr(w, 'text_size', (s[0], None)))
+
+        hud_bottom.add_widget(self.hud_dot)
+        hud_bottom.add_widget(self.hud_estado)
+        hud_bottom.add_widget(self.hud_nivel)
+        cam_section.add_widget(hud_bottom)
+
+        layout.add_widget(cam_section)
+
+        # ── PANEL INFERIOR (fondo oscuro, todo pegado) ───────────────────────
+        bottom_panel = BoxLayout(
+            orientation='vertical',
+            size_hint=(1, 1),
+            padding=[dp(12), dp(10), dp(12), dp(14)],
+            spacing=dp(10)
+        )
+        with bottom_panel.canvas.before:
+            Color(*C_DARK)
+            self._panel_bg = Rectangle(
+                pos=bottom_panel.pos, size=bottom_panel.size)
+        bottom_panel.bind(
+            pos=lambda w, v: setattr(self._panel_bg, 'pos', w.pos),
+            size=lambda w, v: setattr(self._panel_bg, 'size', w.size))
+
+        # ── Fila métricas EAR + MAR ──────────────────────────────────────────
+        metricas = BoxLayout(
+            size_hint=(1, None),
+            height=dp(80),
+            spacing=dp(10)
+        )
+
+        for title, subtitle, attr_val, attr_sub in [
+            ('EAR', 'Apertura de ojos', 'lbl_ear', 'lbl_ear_sub'),
+            ('MAR', 'Apertura de boca', 'lbl_mar', 'lbl_mar_sub'),
+        ]:
+            card = BoxLayout(
+                orientation='vertical',
+                padding=[dp(14), dp(8)]
+            )
+            make_card(card, r=14, color=C_CARD)
+
+            row = BoxLayout(size_hint_y=None, height=dp(32))
+            lbl_title = Label(
+                text=title,
+                font_size=dp(10),
+                color=(*C_CYAN[:3], 0.6),
+                bold=True,
+                size_hint_x=None,
+                width=dp(36),
+                halign='left'
+            )
+            lbl_title.bind(
+                size=lambda w, s: setattr(w, 'text_size', (s[0], None)))
+            val = Label(
+                text='—',
+                font_size=dp(24),
+                bold=True,
+                color=C_TEXT,
+                halign='right'
+            )
+            val.bind(size=lambda w, s: setattr(w, 'text_size', (s[0], None)))
+            setattr(self, attr_val, val)
+            row.add_widget(lbl_title)
+            row.add_widget(val)
+            card.add_widget(row)
+
+            sub = Label(
+                text=subtitle,
+                font_size=dp(10),
+                color=(*C_MUTED[:3], 0.7),
+                halign='left',
+                size_hint_y=None,
+                height=dp(18)
+            )
+            sub.bind(size=lambda w, s: setattr(w, 'text_size', (s[0], None)))
+            setattr(self, attr_sub, sub)
+            card.add_widget(sub)
+
+            metricas.add_widget(card)
+
+        bottom_panel.add_widget(metricas)
+
+        # ── Separador sutil ───────────────────────────────────────────────────
+        sep = Widget(size_hint_y=None, height=dp(1))
+        with sep.canvas:
             Color(*C_BORDER)
-            self._cam_border = RoundedRectangle(
-                pos=cam_container.pos, size=cam_container.size, radius=[dp(16)])
-            Color(*C_CARD)
-            self._cam_bg = RoundedRectangle(
-                pos=cam_container.pos, size=cam_container.size, radius=[dp(15)])
-        def _upd_cam(w, v, border=self._cam_border, bg=self._cam_bg):
-            border.pos  = w.pos; border.size = w.size
-            bg.pos      = w.pos; bg.size     = w.size
-        cam_container.bind(pos=_upd_cam, size=_upd_cam)
-        self.img_camara  = KivyImage(size_hint=(1, 1))
-        self.lbl_cam_off = Label(text='[ CÁMARA DESACTIVADA ]',
-                                  font_size=dp(13), color=(*C_MUTED[:3], 0.4),
-                                  size_hint=(1, 1))
-        cam_container.add_widget(self.img_camara)
-        cam_container.add_widget(self.lbl_cam_off)
-        layout.add_widget(cam_container)
+            self._sep_rect = Rectangle(pos=sep.pos, size=sep.size)
+        sep.bind(
+            pos=lambda w, v: setattr(self._sep_rect, 'pos', w.pos),
+            size=lambda w, v: setattr(self._sep_rect, 'size', w.size))
+        bottom_panel.add_widget(sep)
 
-        # Panel estado con nivel de fatiga
-        estado_box = BoxLayout(size_hint_y=None, height=dp(64),
-                               padding=[dp(16), dp(8)], spacing=dp(10))
-        make_card(estado_box, r=14)
-        self.estado_dot = Label(text='●', font_size=dp(24),
-                                color=(*C_MUTED[:3], 0.4),
-                                size_hint_x=None, width=dp(32))
-        estado_texto = BoxLayout(orientation='vertical')
-        self.lbl_estado = Label(text='Presiona INICIAR para comenzar',
-                                font_size=dp(13), color=C_TEXT,
-                                halign='left', bold=True)
-        self.lbl_estado.bind(size=lambda w, s: setattr(w, 'text_size', (s[0], None)))
-        self.lbl_nivel = Label(text='', font_size=dp(10),
-                               color=(*C_MUTED[:3], 1), halign='left')
-        self.lbl_nivel.bind(size=lambda w, s: setattr(w, 'text_size', (s[0], None)))
-        estado_texto.add_widget(self.lbl_estado)
-        estado_texto.add_widget(self.lbl_nivel)
-        estado_box.add_widget(self.estado_dot)
-        estado_box.add_widget(estado_texto)
-        layout.add_widget(estado_box)
+        # ── Botones principales ───────────────────────────────────────────────
+        botones = BoxLayout(
+            size_hint=(1, None),
+            height=dp(54),
+            spacing=dp(10)
+        )
 
-        # Métricas EAR / MAR
-        metricas = BoxLayout(size_hint_y=None, height=dp(70), spacing=dp(8))
-        for title, attr in [('EAR — OJOS', 'lbl_ear'), ('MAR — BOCA', 'lbl_mar')]:
-            box = BoxLayout(orientation='vertical', padding=[dp(12), dp(6)])
-            make_card(box, r=12)
-            box.add_widget(Label(text=title, font_size=dp(9),
-                                 color=(*C_CYAN[:3], 0.7), bold=True,
-                                 size_hint_y=None, height=dp(18)))
-            val = Label(text='—', font_size=dp(22), bold=True, color=C_TEXT)
-            setattr(self, attr, val)
-            box.add_widget(val)
-            metricas.add_widget(box)
-        layout.add_widget(metricas)
-
-        # Botones
-        botones = BoxLayout(size_hint_y=None, height=dp(52), spacing=dp(8))
-        self.btn_camara = CyanButton(text='▶  INICIAR DETECCIÓN', font_size=dp(14))
+        self.btn_camara = CyanButton(
+            text='▶  INICIAR DETECCIÓN',
+            font_size=dp(14)
+        )
         self.btn_camara.bind(on_press=self.toggle_camara)
-        btn_salir = GhostButton(text='Salir', font_size=dp(13),
-                                size_hint_x=None, width=dp(90))
+
+        btn_salir = GhostButton(
+            text='⏏  Salir',
+            font_size=dp(13),
+            size_hint_x=None,
+            width=dp(100)
+        )
         btn_salir.bind(on_press=self.cerrar_sesion)
+
         botones.add_widget(self.btn_camara)
         botones.add_widget(btn_salir)
-        layout.add_widget(botones)
+        bottom_panel.add_widget(botones)
 
-        layout.add_widget(Widget())
+        layout.add_widget(bottom_panel)
         self.add_widget(layout)
 
+    # ── Helpers de color para botón principal ──────────────────────────────
     def _set_btn_color(self, color):
         self.btn_camara.canvas.before.clear()
         with self.btn_camara.canvas.before:
             Color(*color)
             self.btn_camara._bg = RoundedRectangle(
-                pos=self.btn_camara.pos, size=self.btn_camara.size,
+                pos=self.btn_camara.pos,
+                size=self.btn_camara.size,
                 radius=[dp(12)])
-        self.btn_camara.bind(pos=self.btn_camara._upd,
-                              size=self.btn_camara._upd)
+        self.btn_camara.bind(
+            pos=self.btn_camara._upd,
+            size=self.btn_camara._upd)
 
     def toggle_camara(self, *args):
         if not self.activo:
@@ -370,7 +538,7 @@ class CamaraScreen(Screen):
         self.cap    = cv2.VideoCapture(0)
         self.activo = True
         self.lbl_cam_off.opacity = 0
-        self.btn_camara.text = '⏹  DETENER'
+        self.btn_camara.text = '⏹  DETENER DETECCIÓN'
         self._set_btn_color(C_RED)
         Clock.schedule_interval(self.actualizar_frame, 1.0 / 20)
 
@@ -382,12 +550,19 @@ class CamaraScreen(Screen):
         self.lbl_cam_off.opacity  = 1
         self.btn_camara.text      = '▶  INICIAR DETECCIÓN'
         self._set_btn_color(C_CYAN)
-        self.lbl_estado.text      = 'Presiona INICIAR para comenzar'
-        self.lbl_estado.color     = C_TEXT
-        self.lbl_nivel.text       = ''
-        self.estado_dot.color     = (*C_MUTED[:3], 0.4)
-        self.lbl_ear.text         = '—'
-        self.lbl_mar.text         = '—'
+
+        # Resetear HUD
+        self.hud_estado.text  = 'Presiona INICIAR para comenzar'
+        self.hud_estado.color = (*C_MUTED[:3], 0.8)
+        self.hud_dot.color    = (*C_MUTED[:3], 0.4)
+        self.hud_nivel.text   = ''
+
+        # Resetear métricas
+        self.lbl_ear.text  = '—'
+        self.lbl_mar.text  = '—'
+        self.lbl_ear.color = C_TEXT
+        self.lbl_mar.color = C_TEXT
+
         self.tiempo_ojos_cerrados = 0
 
     def actualizar_frame(self, dt):
@@ -410,11 +585,11 @@ class CamaraScreen(Screen):
 
         estado = evaluar_estado(ear, mar, segundos)
 
-        # Métricas
+        # Actualizar métricas
         self.lbl_ear.text = f'{ear:.3f}'
         self.lbl_mar.text = f'{mar:.3f}'
 
-        # Sonido — alerta cada 3s, precaución cada 5s
+        # Alertas sonoras
         ahora = time.time()
         if estado == "alerta" and (ahora - self.ultima_alerta) > 3:
             self.ultima_alerta = ahora
@@ -425,19 +600,22 @@ class CamaraScreen(Screen):
             threading.Thread(
                 target=lanzar_alerta, args=("precaucion",), daemon=True).start()
 
-        # Actualizar UI
+        # Actualizar HUD superpuesto
         emoji, texto, color = ESTADO_INFO[estado]
-        self.lbl_estado.text  = f'{emoji}  {texto}'
-        self.lbl_estado.color = color
-        self.estado_dot.color = color
-        self.lbl_ear.color    = color if estado != "bueno" else C_TEXT
-        self.lbl_nivel.text   = NIVEL_TEXTO[estado]
-        self.lbl_nivel.color  = color
+        self.hud_estado.text  = f'{emoji}  {texto}'
+        self.hud_estado.color = color
+        self.hud_dot.color    = color
+        self.hud_nivel.text   = NIVEL_TEXTO[estado]
+        self.hud_nivel.color  = color
+
+        # Color en métricas
+        self.lbl_ear.color = color if estado != "bueno" else C_TEXT
+        self.lbl_mar.color = color if estado == "malo" or estado == "alerta" else C_TEXT
 
         # Frame → textura Kivy
         frame_flip = cv2.flip(frame, 0)
-        buf     = frame_flip.tobytes()
-        texture = Texture.create(
+        buf        = frame_flip.tobytes()
+        texture    = Texture.create(
             size=(frame.shape[1], frame.shape[0]), colorfmt='bgr')
         texture.blit_buffer(buf, colorfmt='bgr', bufferfmt='ubyte')
         self.img_camara.texture = texture
